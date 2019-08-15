@@ -1,8 +1,9 @@
+import argparse
 import os
-from argparse import ArgumentParser
 from copy import copy
 from distutils.dir_util import copy_tree
 from tempfile import mkdtemp
+from zipfile import ZipFile
 
 
 def remove_comments(path_to_file):
@@ -98,40 +99,49 @@ def filter_file_list(folder_name, extracted_list):
     return [x[0] for x in filtered_list] + delete_list
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("path", type=str, help="path to main file in unpacked project folder", nargs="?")
-    parser.add_argument("-m", "--main-file", type=str, help="name of main file in a project")
-    parser.add_argument("-z", "--zip-name", type=str, help="path to a zipped project folder")
-
-    args = parser.parse_args()
-
-    # TODO: check input file path
-    if args.path:
-        folder_name, main_file = os.path.split(args.path)
-    else:
-        main_file = args.main_file
-        folder_name = "."
-
-    # copying contents into temp directory to process
-    temp_dir_name = mkdtemp()
-    copy_tree(folder_name, temp_dir_name)
-
-    file_name = os.path.join(temp_dir_name, main_file)
+def process_project_folder(folder_name, main_file):
+    file_name = os.path.join(folder_name, main_file)
     remove_comments(file_name)
     file_list = [(main_file, "tex")]
     files_to_check = copy(file_list)
     while files_to_check:
         file = files_to_check.pop(0)
         if file[1] == "tex":
-            file_name = os.path.join(temp_dir_name, file[0])
+            file_name = os.path.join(folder_name, file[0])
             remove_comments(file_name)
             temp_list = get_file_mentions(file_name)
             files_to_check += temp_list
             file_list += temp_list
 
-    files_to_remove = filter_file_list(temp_dir_name, file_list)
+    files_to_remove = filter_file_list(folder_name, file_list)
     # TODO: check for empty directories after removal
     for file in files_to_remove:
         os.remove(file)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path", type=str, help="either path to main file in unpacked project folder,"
+                                               "or path to zip file with project folder", nargs=argparse.REMAINDER)
+    parser.add_argument("-m", "--main-file", type=str, help="name of main file in a project")
+    args = parser.parse_args()
+
+    temp_dir_name = mkdtemp()
+    if args.path.endswith(".tex"):
+        folder_name, main_file = os.path.split(args.path)
+
+        # copying contents into temp directory to process
+        copy_tree(folder_name, temp_dir_name)
+    elif args.path.endswith(".zip"):
+        main_file = args.main_file
+        if not main_file.endswith(".tex"):
+            raise ValueError("You should provide either .tex main file name or path to it inside a project directory.")
+
+        # extracting contents into temp directory to process
+        with ZipFile(args.path, "r") as f:
+            f.extractall(path=temp_dir_name)
+    else:
+        raise ValueError("You should provide a path to either .zip, or .tex file.")
+
+    process_project_folder(temp_dir_name, main_file)
     print(temp_dir_name)
