@@ -128,7 +128,7 @@ if __name__ == "__main__":
     if path.endswith(".tex"):
         main_file = file_name
         archive_name = os.path.join(folder_name, os.pardir, os.path.basename(folder_name) + "_clean.zip")
-        
+
         # copying contents into temp directory to process
         copy_tree(folder_name, temp_dir_name)
     elif path.endswith(".zip"):
