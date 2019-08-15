@@ -84,7 +84,7 @@ def get_file_mentions(path_to_file):
 
 
 def filter_file_list(folder_name, extracted_list):
-    check_list = set([(os.path.join(folder_name, x[0]), x[1]) for x in extracted_list])
+    check_list = {(os.path.join(folder_name, x[0]), x[1]) for x in extracted_list}
     curated_list, other_list = set(), set()
 
     for root, directories, filenames in os.walk(folder_name):
