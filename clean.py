@@ -1,9 +1,10 @@
-import argparse
+from argparse import ArgumentParser, REMAINDER
 import os
 from copy import copy
 from distutils.dir_util import copy_tree
 from tempfile import mkdtemp
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
+from shutil import rmtree
 
 
 def remove_comments(path_to_file):
@@ -75,8 +76,8 @@ def get_file_mentions(path_to_file):
 
 
 def filter_file_list(folder_name, extracted_list):
-    check_list = [(os.path.join(folder_name, x[0]), x[1]) for x in extracted_list]
-    curated_list, delete_list = [], []
+    check_list = set([(os.path.join(folder_name, x[0]), x[1]) for x in extracted_list])
+    curated_list, other_list = set(), set()
 
     for root, directories, filenames in os.walk(folder_name):
         for directory in directories:
@@ -84,19 +85,16 @@ def filter_file_list(folder_name, extracted_list):
         for filename in filenames:
             full_name = os.path.join(root, filename)
             if filename.endswith(".cls"):
-                curated_list.append((full_name, "cls"))
+                curated_list.add((full_name, "cls"))
             elif filename.endswith(".bib"):
-                curated_list.append((full_name, "bib"))
+                curated_list.add((full_name, "bib"))
             elif filename[-4:] in [".png", ".jpg", ".eps"]:
-                curated_list.append((full_name, "img"))
+                curated_list.add((full_name, "img"))
             elif filename.endswith(".tex"):
-                curated_list.append((full_name, "tex"))
+                curated_list.add((full_name, "tex"))
             elif filename[-4:] in [".bst", ".clo", ".ins", ".dtx"]:
-                pass
-            else:
-                delete_list.append(full_name)
-    filtered_list = list(set(curated_list) - set(check_list))
-    return [x[0] for x in filtered_list] + delete_list
+                other_list.add((full_name, "oth"))
+    return {x[0] for x in curated_list.intersection(check_list).union(other_list)}
 
 
 def process_project_folder(folder_name, main_file):
@@ -113,35 +111,41 @@ def process_project_folder(folder_name, main_file):
             files_to_check += temp_list
             file_list += temp_list
 
-    files_to_remove = filter_file_list(folder_name, file_list)
-    # TODO: check for empty directories after removal
-    for file in files_to_remove:
-        os.remove(file)
+    return filter_file_list(folder_name, file_list)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument("path", type=str, help="either path to main file in unpacked project folder,"
-                                               "or path to zip file with project folder", nargs=argparse.REMAINDER)
+                                               "or path to zip file with project folder", nargs=REMAINDER)
     parser.add_argument("-m", "--main-file", type=str, help="name of main file in a project")
     args = parser.parse_args()
 
+    # preparing paths
     temp_dir_name = mkdtemp()
-    if args.path.endswith(".tex"):
-        folder_name, main_file = os.path.split(args.path)
-
+    path = " ".join(args.path)
+    folder_name, file_name = os.path.split(path)
+    if path.endswith(".tex"):
+        main_file = file_name
+        archive_name = os.path.join(folder_name, os.pardir, os.path.basename(folder_name) + "_clean.zip")
+        
         # copying contents into temp directory to process
         copy_tree(folder_name, temp_dir_name)
-    elif args.path.endswith(".zip"):
+    elif path.endswith(".zip"):
         main_file = args.main_file
-        if not main_file.endswith(".tex"):
+        if not main_file or not main_file.endswith(".tex"):
             raise ValueError("You should provide either .tex main file name or path to it inside a project directory.")
+        archive_name = os.path.join(folder_name, file_name.rsplit(".", 1)[0] + "_clean.zip")
 
         # extracting contents into temp directory to process
-        with ZipFile(args.path, "r") as f:
+        with ZipFile(path, "r") as f:
             f.extractall(path=temp_dir_name)
     else:
         raise ValueError("You should provide a path to either .zip, or .tex file.")
 
-    process_project_folder(temp_dir_name, main_file)
-    print(temp_dir_name)
+    files_list = process_project_folder(temp_dir_name, main_file)
+    with ZipFile(archive_name, "w", ZIP_DEFLATED) as f:
+        for temp_name in files_list:
+            f.write(temp_name)
+    rmtree(temp_dir_name, ignore_errors=True)
+    print("Cleaned project archive is here:\t" + archive_name)
