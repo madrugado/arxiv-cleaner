@@ -36,7 +36,7 @@ def remove_comments(path_to_file):
                     clean_string = stripped
                 clean_contents.append(clean_string)
     with open(path_to_file, "wt") as f:
-        f.write("\n".join(clean_contents))
+        f.write("\n".join(clean_contents + [""]))
 
 
 def get_mention_from_string(search_handle, line):
