@@ -154,6 +154,6 @@ if __name__ == "__main__":
     files_list = process_project_folder(temp_dir_name, main_file)
     with ZipFile(archive_name, "w", ZIP_DEFLATED) as f:
         for temp_name in files_list:
-            f.write(temp_name)
+            f.write(temp_name, os.path.relpath(temp_name, temp_dir_name))
     rmtree(temp_dir_name, ignore_errors=True)
     print("Cleaned project archive is here:\t" + archive_name)
