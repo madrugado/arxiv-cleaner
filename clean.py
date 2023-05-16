@@ -42,6 +42,10 @@ def remove_comments(path_to_file):
 def get_mention_from_string(search_handle, line):
     start_position = line.find(search_handle)
     if start_position >= 0:
+        # check if the handle is ended
+        if line[start_position + len(search_handle)] not in ["{", "["]:
+            return None
+
         mention = line[start_position + line[start_position:].find("{") + 1:
                        start_position + line[start_position:].find("}")]
         return mention
@@ -73,18 +77,21 @@ def get_file_mentions(path_to_file):
                 file_list.append((img_name, "img"))
 
             # inclusion of bibliography
-            # TODO: get rid of bibliographystyle
             bib_name = get_mention_from_string("\\bibliography", stripped)
             if bib_name:
-                if not bib_name.endswith(".bib"):
-                    bib_name += ".bib"
-                file_list.append((bib_name, "bib"))
+                bib_names = bib_name.split(",")
+                for b_n in bib_names:
+                    if not b_n.endswith(".bib"):
+                        b_n += ".bib"
+                    file_list.append((b_n, "bib"))
 
     return file_list
 
 
 def filter_file_list(folder_name, extracted_list):
-    check_list = {(os.path.join(folder_name, x[0]), x[1]) for x in extracted_list}
+    check_list = set()
+    for entry in extracted_list:
+        check_list.add((os.path.realpath(os.path.join(folder_name, entry[0])), entry[1]))
     curated_list, other_list = set(), set()
 
     for root, directories, filenames in os.walk(folder_name):
@@ -96,10 +103,11 @@ def filter_file_list(folder_name, extracted_list):
                 curated_list.add((full_name, "cls"))
             elif filename.endswith(".bib"):
                 curated_list.add((full_name, "bib"))
-            elif filename[-4:] in [".png", ".jpg", ".eps"]:
+            elif filename[-4:] in [".png", ".jpg", ".eps", ".pdf"]:
                 curated_list.add((full_name, "img"))
             elif filename.endswith(".tex"):
                 curated_list.add((full_name, "tex"))
+            # TODO: filter others somehow
             elif filename[-4:] in [".bst", ".clo", ".ins", ".dtx"]:
                 other_list.add((full_name, "oth"))
     return {x[0] for x in curated_list.intersection(check_list).union(other_list)}
