@@ -56,7 +56,7 @@ def get_mention_from_string(search_handle, line):
 def get_file_mentions(path_to_file):
     file_list = []
     with open(path_to_file, "rt") as f_in:
-        for line in f:
+        for line in f_in:
             stripped = line.strip()
 
             # inclusion of class file
