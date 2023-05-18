@@ -17,9 +17,9 @@ from shutil import rmtree
 
 def remove_comments(path_to_file):
     clean_contents = []
-    with open(path_to_file) as f:
+    with open(path_to_file, "rt") as f_in:
         is_comment = False
-        for line in f:
+        for line in f_in:
             stripped = line.strip()
             if stripped.startswith("%"):
                 continue
@@ -35,8 +35,8 @@ def remove_comments(path_to_file):
                 else:
                     clean_string = stripped
                 clean_contents.append(clean_string)
-    with open(path_to_file, "wt") as f:
-        f.write("\n".join(clean_contents + [""]))
+    with open(path_to_file, "wt", encoding="utf-8") as f_out:
+        f_out.write("\n".join(clean_contents + [""]))
 
 
 def get_mention_from_string(search_handle, line):
@@ -55,7 +55,7 @@ def get_mention_from_string(search_handle, line):
 
 def get_file_mentions(path_to_file):
     file_list = []
-    with open(path_to_file) as f:
+    with open(path_to_file, "rt") as f_in:
         for line in f:
             stripped = line.strip()
 
@@ -63,6 +63,11 @@ def get_file_mentions(path_to_file):
             cls_name = get_mention_from_string("\\documentclass", stripped)
             if cls_name:
                 file_list.append((cls_name + ".cls", "cls"))
+
+            # inclusion of additional packages
+            sty_name = get_mention_from_string("\\usepackage", stripped)
+            if sty_name:
+                file_list.append((cls_name + ".sty", "sty"))
 
             # inclusion of other tex files
             tex_name = get_mention_from_string("\\input", stripped)
@@ -85,6 +90,13 @@ def get_file_mentions(path_to_file):
                         b_n += ".bib"
                     file_list.append((b_n, "bib"))
 
+            # inclusion of bibliography style
+            bst_name = get_mention_from_string("\\bibliographystyle", stripped)
+            if bst_name:
+                if not bst_name.endswith(".bst"):
+                    bst_name += ".bst"
+                file_list.append((bst_name, "bst"))
+
     return file_list
 
 
@@ -101,14 +113,18 @@ def filter_file_list(folder_name, extracted_list):
             full_name = os.path.join(root, filename)
             if filename.endswith(".cls"):
                 curated_list.add((full_name, "cls"))
+            elif filename.endswith(".sty"):
+                curated_list.add((full_name, "sty"))
             elif filename.endswith(".bib"):
                 curated_list.add((full_name, "bib"))
+            elif filename.endswith(".bst"):
+                curated_list.add((full_name, "bst"))
             elif filename[-4:] in [".png", ".jpg", ".eps", ".pdf"]:
                 curated_list.add((full_name, "img"))
             elif filename.endswith(".tex"):
                 curated_list.add((full_name, "tex"))
             # TODO: filter others somehow
-            elif filename[-4:] in [".bst", ".clo", ".ins", ".dtx"]:
+            elif filename[-4:] in [".clo", ".ins", ".dtx"]:
                 other_list.add((full_name, "oth"))
     return {x[0] for x in curated_list.intersection(check_list).union(other_list)}
 
