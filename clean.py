@@ -107,10 +107,8 @@ def filter_file_list(folder_name, extracted_list):
     curated_list, other_list = set(), set()
 
     for root, directories, filenames in os.walk(folder_name):
-        for directory in directories:
-            os.path.join(root, directory)
         for filename in filenames:
-            full_name = os.path.join(root, filename)
+            full_name = os.path.realpath(os.path.join(root, filename))
             if filename.endswith(".cls"):
                 curated_list.add((full_name, "cls"))
             elif filename.endswith(".sty"):
@@ -154,7 +152,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # preparing paths
-    temp_dir_name = mkdtemp()
+    temp_dir_name = os.path.realpath(mkdtemp())
     path = " ".join(args.path)
     folder_name, file_name = os.path.split(path)
     if path.endswith(".tex"):
