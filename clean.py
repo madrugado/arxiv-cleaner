@@ -67,7 +67,7 @@ def get_file_mentions(path_to_file):
             # inclusion of additional packages
             sty_name = get_mention_from_string("\\usepackage", stripped)
             if sty_name:
-                file_list.append((cls_name + ".sty", "sty"))
+                file_list.append((sty_name + ".sty", "sty"))
 
             # inclusion of other tex files
             tex_name = get_mention_from_string("\\input", stripped)
