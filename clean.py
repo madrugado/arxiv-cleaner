@@ -101,6 +101,11 @@ def get_file_mentions(path_to_file):
 
 
 def filter_file_list(folder_name, extracted_list):
+    """
+    :param folder_name: project contents folder name
+    :param extracted_list: extracted from *.tex list of files
+    :return: intersection of folder contents and extracted list
+    """
     check_list = set()
     for entry in extracted_list:
         check_list.add((os.path.realpath(os.path.join(folder_name, entry[0])), entry[1]))
@@ -117,6 +122,8 @@ def filter_file_list(folder_name, extracted_list):
                 curated_list.add((full_name, "bib"))
             elif filename.endswith(".bst"):
                 curated_list.add((full_name, "bst"))
+            elif filename.endswith(".bbl"):
+                curated_list.add((full_name, "bbl"))
             elif filename[-4:] in [".png", ".jpg", ".eps", ".pdf"]:
                 curated_list.add((full_name, "img"))
             elif filename.endswith(".tex"):
@@ -127,7 +134,16 @@ def filter_file_list(folder_name, extracted_list):
     return {x[0] for x in curated_list.intersection(check_list).union(other_list)}
 
 
+def get_bbl_name(main_file):
+    return main_file.rsplit(".", 1)[0] + ".bbl"
+
+
 def process_project_folder(folder_name, main_file):
+    """
+    :param folder_name: project contents folder name
+    :param main_file: main .tex file of the project
+    :return: filtered file list
+    """
     file_name = os.path.join(folder_name, main_file)
     remove_comments(file_name)
     file_list = [(main_file, "tex")]
@@ -141,7 +157,19 @@ def process_project_folder(folder_name, main_file):
             files_to_check += temp_list
             file_list += temp_list
 
+    file_list.append((get_bbl_name(main_file), "bbl"))
+
     return filter_file_list(folder_name, file_list)
+
+
+def check_bbl(temp_dir_name, main_file):
+    """
+    :param main_file: name of the main project file
+    :param temp_dir_name: directory with project contents
+    :return: if there exist the main file with pairing .bbl file
+    """
+    bbl_path = os.path.join(temp_dir_name, get_bbl_name(main_file))
+    return os.path.exists(os.path.join(temp_dir_name, main_file)) and os.path.exists(bbl_path)
 
 
 if __name__ == "__main__":
@@ -172,6 +200,10 @@ if __name__ == "__main__":
             f.extractall(path=temp_dir_name)
     else:
         raise ValueError("You should provide a path to either .zip, or .tex file.")
+
+    if not check_bbl(temp_dir_name, main_file):
+        raise ValueError("ArXiv requires your project to have pairing .bbl file for the main one. "
+                         "Please compile .bbl for the main file.")
 
     files_list = process_project_folder(temp_dir_name, main_file)
     with ZipFile(archive_name, "w", ZIP_DEFLATED) as f:
