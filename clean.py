@@ -35,7 +35,7 @@ def remove_comments(path_to_file):
                 else:
                     clean_string = stripped
                 clean_contents.append(clean_string)
-    with open(path_to_file, "wt", encoding="utf-8") as f_out:
+    with open(path_to_file, "wt") as f_out:
         f_out.write("\n".join(clean_contents + [""]))
 
 
